@@ -1,0 +1,87 @@
+from datetime import datetime
+import streamlit as st
+
+# 頁面標題設定
+st.set_page_config(page_title="油品貿易多維度報價換算工具", layout="centered")
+
+st.title("🛢️ 國際油品 (Gasoil) 智能換算與定價系統")
+st.markdown(
+    "專為團隊設計：支援歷史日曆、多幣別（USD/TWD/PHP）與公噸/公升換算。"
+)
+
+# --- 側邊欄：輸入參數設定 ---
+st.sidebar.header("⚙️ 參數設定面板")
+
+# 1. 日曆功能
+selected_date = st.sidebar.date_input(
+    "選擇交易/結算日期", datetime.today()
+)
+
+# 2. 價格輸入
+price_per_barrel_usd = st.sidebar.number_input(
+    "Platts / 期貨每桶單價 (USD)",
+    min_value=0.0,
+    max_value=500.0,
+    value=180.60,
+    step=0.1,
+)
+
+# 3. 匯率輸入
+st.sidebar.subheader("💱 匯率設定 (兌 USD)")
+rate_twd = st.sidebar.number_input(
+    "USD to TWD (台幣)", value=32.0, step=0.1
+)
+rate_php = st.sidebar.number_input(
+    "USD to PHP (披索)", value=56.5, step=0.1
+)
+
+# --- 核心計算邏輯 ---
+BARRELS_PER_MT = 7.45
+LITERS_PER_MT = 1184.0
+
+price_per_mt_usd = price_per_barrel_usd * BARRELS_PER_MT
+price_per_liter_usd = price_per_mt_usd / LITERS_PER_MT
+
+# --- 主畫面：結果呈現 ---
+st.markdown(f"### 📅 結算日期：{selected_date.strftime('%Y-%m-%d')}")
+
+data = {
+    "計價單位": ["每桶 (Barrel)", "每公噸 (MT)", "每公升 (Liter)"],
+    "美金 (USD)": [
+        f"${price_per_barrel_usd:,.2f}",
+        f"${price_per_mt_usd:,.2f}",
+        f"${price_per_liter_usd:,.4f}",
+    ],
+    "新台幣 (TWD)": [
+        f"${price_per_barrel_usd * rate_twd:,.2f}",
+        f"${price_per_mt_usd * rate_twd:,.2f}",
+        f"${price_per_liter_usd * rate_twd:,.4f}",
+    ],
+    "菲律賓披索 (PHP)": [
+        f"${price_per_barrel_usd * rate_php:,.2f}",
+        f"${price_per_mt_usd * rate_php:,.2f}",
+        f"${price_per_liter_usd * rate_php:,.4f}",
+    ],
+}
+
+st.table(data)
+
+# --- 大宗訂單總價快速試算 ---
+st.markdown("---")
+st.subheader("📦 大宗訂單總價快速試算")
+tonnage_input = st.number_input(
+    "輸入採購公噸數 (MT)",
+    min_value=100,
+    max_value=1000000,
+    value=100000,
+    step=1000,
+)
+
+total_usd = price_per_mt_usd * tonnage_input
+total_twd = total_usd * rate_twd
+total_php = total_usd * rate_php
+
+col1, col2, col3 = st.columns(3)
+col1.metric("總金額 (USD)", f"${total_usd:,.2f}")
+col2.metric("總金額 (TWD)", f"${total_twd:,.2f}")
+col3.metric("總金額 (PHP)", f"${total_php:,.2f}")
